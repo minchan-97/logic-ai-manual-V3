@@ -189,15 +189,24 @@ if "uploaded_files" not in st.session_state:
 if "doc_set_hash" not in st.session_state:
     st.session_state.doc_set_hash = ""
 
-# 저장된 인덱스 자동 로드 (페이지 새로고침 후에도 유지)
+# 저장된 인덱스 자동 로드
 if not st.session_state.rag_index.is_built() and st.session_state.doc_set_hash:
     cached = load_index(get_index_path(st.session_state.doc_set_hash))
     if cached:
         st.session_state.rag_index = cached
+
 if "threshold" not in st.session_state:
     st.session_state.threshold = 25.0
 if "last_qa" not in st.session_state:
     st.session_state.last_qa = None
+
+# CoreAI 세션 — 항상 초기화 (coreai_mode 여부 무관)
+if COREAI_AVAILABLE:
+    if "coreai_engine" not in st.session_state:
+        st.session_state.coreai_engine = NeuralMarkovEngine()
+    if "coreai_trained" not in st.session_state:
+        st.session_state.coreai_trained = False
+
 if SAFETY_AVAILABLE:
     if "safety_state" not in st.session_state:
         st.session_state.safety_state = SafetyState()
@@ -264,11 +273,6 @@ with st.sidebar:
         coreai_logp   = -11.5
 
         if coreai_mode:
-            if "coreai_engine" not in st.session_state:
-                st.session_state.coreai_engine = NeuralMarkovEngine()
-            if "coreai_trained" not in st.session_state:
-                st.session_state.coreai_trained = False
-
             st.caption("PDF 인덱스 빌드 후 자동 학습 또는 별도 txt 업로드")
             coreai_corpus_file = st.file_uploader(
                 "추가 코퍼스 (.txt, 선택)",
@@ -591,10 +595,10 @@ if qa:
         )
 
     # CoreAI 가드레일 판정
-    if qa.get("coreai_proc_status"):
+    if qa.get("coreai_proc_status") is not None:
         st.markdown("---")
         st.markdown("### 🎯 CoreAI 가드레일 판정")
-        icon_map = {"PASS":"🟢","WARNING":"🟡","FATAL":"🔴"}
+        icon_map = {"PASS":"🟢","WARNING":"🟡","FATAL":"🔴","SKIP":"⬜"}
         ca1, ca2 = st.columns(2)
         ps = qa["coreai_proc_status"]
         cs = qa["coreai_cav_status"]

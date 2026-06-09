@@ -390,13 +390,27 @@ if uploaded:
                             st.error(f"인덱스 빌드 실패: {e}")
 
 # 인덱스 상태
+import os, pickle, io
+
 if st.session_state.rag_index.is_built():
-    st.success(f"✓ 인덱스 준비 완료 ({st.session_state.rag_index.size()}개 청크) — 저장된 캐시 사용 중")
+    st.success(f"✓ 인덱스 준비 완료 ({st.session_state.rag_index.size()}개 청크)")
+
+    # 인덱스 다운로드 버튼
+    idx_bytes = pickle.dumps({
+        "chunks": st.session_state.rag_index.chunks,
+        "embeddings": st.session_state.rag_index.embeddings,
+    })
+    st.download_button(
+        label="💾 인덱스 다운로드 (로컬 저장용)",
+        data=idx_bytes,
+        file_name=f"rag_index_{st.session_state.doc_set_hash[:8]}.pkl",
+        mime="application/octet-stream",
+        help="다운로드 후 다음 접속 시 업로드하면 재빌드 불필요 (비용 0원)",
+    )
 else:
     # 저장된 캐시 있는지 확인
     if st.session_state.doc_set_hash:
         cached_path = get_index_path(st.session_state.doc_set_hash)
-        import os
         if os.path.exists(cached_path):
             if st.button("💾 저장된 인덱스 불러오기", type="primary"):
                 loaded = load_index(cached_path)
@@ -404,6 +418,26 @@ else:
                     st.session_state.rag_index = loaded
                     st.success(f"✓ 저장된 인덱스 로드 완료 ({loaded.size()}개 청크)")
                     st.rerun()
+
+    # 인덱스 파일 업로드로 불러오기
+    idx_file = st.file_uploader(
+        "💾 저장된 인덱스 업로드 (.pkl) — 재빌드 없이 바로 사용",
+        type=["pkl"],
+        key="idx_uploader",
+    )
+    if idx_file:
+        try:
+            data = pickle.loads(idx_file.read())
+            loaded = RagIndex(chunks=data["chunks"], embeddings=data["embeddings"])
+            if loaded.is_built():
+                st.session_state.rag_index = loaded
+                st.success(f"✓ 인덱스 로드 완료 ({loaded.size()}개 청크) — 비용 0원")
+                st.rerun()
+            else:
+                st.error("유효하지 않은 인덱스 파일이에요.")
+        except Exception as e:
+            st.error(f"인덱스 로드 실패: {e}")
+
     st.info("PDF를 업로드하고 '인덱스 빌드'를 누르세요.")
 
 

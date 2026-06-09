@@ -446,6 +446,19 @@ else:
             if loaded.is_built():
                 st.session_state.rag_index = loaded
                 st.success(f"✓ 인덱스 로드 완료 ({loaded.size()}개 청크) — 비용 0원")
+
+                # CoreAI 자동 학습 (청크 텍스트로)
+                if COREAI_AVAILABLE and not st.session_state.get("coreai_trained", False):
+                    with st.spinner("CoreAI 자동 학습 중..."):
+                        try:
+                            corpus_text = "\n".join(c.text for c in loaded.chunks)
+                            st.session_state.coreai_engine.train(
+                                corpus_text, embedding_dim=32, epochs=10
+                            )
+                            st.session_state.coreai_trained = True
+                            st.success(f"✓ CoreAI 자동 학습 완료 ({len(st.session_state.coreai_engine.idx2word)}어휘)")
+                        except Exception as e:
+                            st.warning(f"CoreAI 학습 실패: {e}")
                 st.rerun()
             else:
                 st.error("유효하지 않은 인덱스 파일이에요.")
@@ -609,7 +622,11 @@ if qa:
         )
 
     # CoreAI 가드레일 판정
-    if qa.get("coreai_proc_status") is not None:
+    _show_coreai = (
+        qa.get("coreai_proc_status") is not None
+        and qa["coreai_proc_status"] != "SKIP"
+    )
+    if _show_coreai:
         st.markdown("---")
         st.markdown("### 🎯 CoreAI 가드레일 판정")
         icon_map = {"PASS":"🟢","WARNING":"🟡","FATAL":"🔴","SKIP":"⬜"}
@@ -625,11 +642,13 @@ if qa:
             f"({qa['coreai_cav_attempts']}회 시도)"
         )
         if ps == "FATAL" or cs == "FATAL":
-            st.error("🔴 CoreAI: 매뉴얼 도메인 이탈 — 답변 신뢰도 낮음. 원본 매뉴얼 직접 확인 필요")
+            st.error("🔴 CoreAI: 매뉴얼 도메인 이탈 — 원본 매뉴얼 직접 확인 필요")
         elif ps == "WARNING" or cs == "WARNING":
             st.warning("🟡 CoreAI: 경계 수준 — 매뉴얼 내용과 일부 다를 수 있음")
         else:
             st.success("✅ CoreAI: 매뉴얼 도메인 안 답변")
+    elif st.session_state.get("coreai_mode_val") and not st.session_state.get("coreai_trained"):
+        st.info("🎯 CoreAI: 학습 필요 — 사이드바에서 코퍼스를 학습하세요.")
 
     # 검색된 출처
     with st.expander(f"🔍 검색된 자료 ({len(qa['results'])}개)", expanded=False):

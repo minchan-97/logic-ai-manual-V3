@@ -258,6 +258,11 @@ with st.sidebar:
             value=False,
             help="매뉴얼 코퍼스로 NeuralMarkov 학습 → 답변이 매뉴얼 도메인 안에 있는지 검증 → 이탈 시 재생성",
         )
+        # 기본값 먼저 설정 (coreai_mode=False여도 변수 존재해야 함)
+        coreai_epochs = 10
+        coreai_retry  = 2
+        coreai_logp   = -11.5
+
         if coreai_mode:
             if "coreai_engine" not in st.session_state:
                 st.session_state.coreai_engine = NeuralMarkovEngine()
@@ -289,7 +294,10 @@ with st.sidebar:
             if st.session_state.get("coreai_trained"):
                 st.success("✓ CoreAI 학습됨")
     else:
-        coreai_mode = False
+        coreai_mode   = False
+        coreai_epochs = 10
+        coreai_retry  = 2
+        coreai_logp   = -11.5
 
     st.divider()
     st.markdown("### 🔒 개인정보")

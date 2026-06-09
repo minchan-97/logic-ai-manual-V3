@@ -265,6 +265,7 @@ with st.sidebar:
         coreai_mode = st.checkbox(
             "CoreAI 사용",
             value=False,
+            key="coreai_mode_cb",
             help="매뉴얼 코퍼스로 NeuralMarkov 학습 → 답변이 매뉴얼 도메인 안에 있는지 검증 → 이탈 시 재생성",
         )
         # 기본값 먼저 설정 (coreai_mode=False여도 변수 존재해야 함)
@@ -437,7 +438,7 @@ else:
         type=["pkl"],
         key="idx_uploader",
     )
-    if idx_file:
+    if idx_file is not None and not st.session_state.rag_index.is_built():
         try:
             data = pickle.loads(idx_file.read())
             loaded = RagIndex(chunks=data["chunks"], embeddings=data["embeddings"])
@@ -449,8 +450,8 @@ else:
                 st.error("유효하지 않은 인덱스 파일이에요.")
         except Exception as e:
             st.error(f"인덱스 로드 실패: {e}")
-
-    st.info("PDF를 업로드하고 '인덱스 빌드'를 누르세요.")
+    elif not st.session_state.rag_index.is_built():
+        st.info("PDF를 업로드하고 '인덱스 빌드'를 누르세요.")
 
 
 # =========================================================
@@ -493,8 +494,10 @@ if run:
             st.stop()
 
     if not results:
-        st.warning("관련 자료를 찾지 못했습니다. PDF를 다시 업로드하고 인덱스를 빌드해보세요.")
+        st.warning("관련 자료를 찾지 못했습니다. 인덱스를 다시 빌드해보세요.")
         st.stop()
+
+    st.caption(f"🔍 관련 자료 {len(results)}개 검색됨")
 
     context = format_context_for_llm(results)
     user_msg = build_user_message(query, context)

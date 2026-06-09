@@ -468,6 +468,9 @@ ready = st.session_state.rag_index.is_built() and query.strip()
 run = st.button("🔍 질문 검색 및 답변", type="primary", disabled=not ready)
 
 if run:
+    # 이전 결과 초기화 — 새 질문 시작
+    st.session_state.last_qa = None
+
     if not api_key:
         st.error("OpenAI API Key가 필요합니다.")
         st.stop()
@@ -486,10 +489,11 @@ if run:
             )
         except Exception as e:
             st.error(f"검색 실패: {e}")
+            st.caption("API Key 확인 또는 인덱스를 다시 빌드해보세요.")
             st.stop()
 
     if not results:
-        st.warning("관련 자료를 찾지 못했습니다.")
+        st.warning("관련 자료를 찾지 못했습니다. PDF를 다시 업로드하고 인덱스를 빌드해보세요.")
         st.stop()
 
     context = format_context_for_llm(results)

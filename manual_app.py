@@ -264,10 +264,11 @@ with st.sidebar:
         st.markdown("### 🎯 CoreAI 가드레일")
         coreai_mode = st.checkbox(
             "CoreAI 사용",
-            value=False,
+            value=st.session_state.get("coreai_mode_val", False),
             key="coreai_mode_cb",
             help="매뉴얼 코퍼스로 NeuralMarkov 학습 → 답변이 매뉴얼 도메인 안에 있는지 검증 → 이탈 시 재생성",
         )
+        st.session_state.coreai_mode_val = coreai_mode
         # 기본값 먼저 설정 (coreai_mode=False여도 변수 존재해야 함)
         coreai_epochs = 10
         coreai_retry  = 2
@@ -506,10 +507,16 @@ if run:
 
     with st.spinner("두 관점으로 답변 생성 중..."):
         try:
-            if (coreai_mode and COREAI_AVAILABLE
-                    and st.session_state.get("coreai_trained")):
+            # coreai_mode를 세션에서 읽음 (rerun 후에도 안전)
+            _coreai_active = (
+                st.session_state.get("coreai_mode_val", False)
+                and COREAI_AVAILABLE
+                and st.session_state.get("coreai_trained", False)
+                and st.session_state.get("coreai_engine") is not None
+                and st.session_state.coreai_engine.is_trained
+            )
+            if _coreai_active:
                 engine = st.session_state.coreai_engine
-
                 proc_r = run_guardrail_loop(
                     question=user_msg,
                     llm_fn=lambda p: call_chat(p, PROCEDURE_SYSTEM, chat_model, api_key, chat_url),
